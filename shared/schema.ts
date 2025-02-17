@@ -1,35 +1,74 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const scanResults = pgTable("scan_results", {
   id: serial("id").primaryKey(),
-  path: text("path").notNull(),
+  filePath: text("file_path").notNull(),
+  fileHash: text("file_hash").notNull(),
+  fileSize: integer("file_size").notNull(),
   status: text("status").notNull(), // clean, infected, suspicious
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  details: text("details"),
+  threatType: text("threat_type"), // virus, malware, trojan, etc.
+  scanTimestamp: timestamp("scan_timestamp").defaultNow().notNull(),
+  metadata: jsonb("metadata"), // Additional file metadata
 });
 
 export const systemStatus = pgTable("system_status", {
   id: serial("id").primaryKey(),
-  protection: boolean("protection").notNull().default(true),
-  lastScan: timestamp("last_scan"),
-  threatsFound: integer("threats_found").notNull().default(0),
+  realtimeProtection: boolean("realtime_protection").notNull().default(true),
+  lastFullScan: timestamp("last_full_scan"),
+  lastQuickScan: timestamp("last_quick_scan"),
+  threatsDetected: integer("threats_detected").notNull().default(0),
+  systemHealth: integer("system_health").notNull().default(100), // 0-100
+  lastUpdateCheck: timestamp("last_update_check"),
+  signatureVersion: text("signature_version"),
 });
 
-export const insertScanResultSchema = createInsertSchema(scanResults).omit({ 
+export const malwareSignatures = pgTable("malware_signatures", {
+  id: serial("id").primaryKey(),
+  signatureHash: text("signature_hash").notNull().unique(),
+  malwareType: text("malware_type").notNull(),
+  threatLevel: integer("threat_level").notNull(), // 1-5
+  description: text("description"),
+  detectionPattern: text("detection_pattern").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertScanResultSchema = createInsertSchema(scanResults).omit({
   id: true,
-  timestamp: true 
+  scanTimestamp: true,
+});
+
+export const insertMalwareSignatureSchema = createInsertSchema(malwareSignatures).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type InsertScanResult = z.infer<typeof insertScanResultSchema>;
 export type ScanResult = typeof scanResults.$inferSelect;
 export type SystemStatus = typeof systemStatus.$inferSelect;
+export type MalwareSignature = typeof malwareSignatures.$inferSelect;
 
-export const mockThreats = [
-  "Trojan.Win32.Generic",
-  "Adware.Win32.WebCompanion",
-  "Spyware.Cookie.Tracker",
-  "PUA.Win32.Optimizer",
-  "Malware.Script.Generic"
-];
+// Malware detection patterns and signatures
+export const MALWARE_PATTERNS = {
+  VIRUS: /^X5O!P%@AP\[4\\PZX54\(P\^\)7CC\)7\}\$EICAR/,
+  SUSPICIOUS_PATTERNS: [
+    /WScript\.Shell/,
+    /cmd\.exe/,
+    /powershell\.exe/,
+    /System\.Reflection/,
+  ],
+  DANGEROUS_IMPORTS: [
+    "kernel32.dll",
+    "user32.dll",
+    "advapi32.dll",
+  ],
+};
+
+export const THREAT_LEVELS = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+  SEVERE: 5,
+} as const;

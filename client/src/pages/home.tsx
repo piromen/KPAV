@@ -110,7 +110,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <Shield className="w-10 h-10 text-primary" />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-400 text-transparent bg-clip-text">
-              Security Center
+              KAZIMPAŞA ANTİ-VİRÜS
             </h1>
           </div>
           <Button

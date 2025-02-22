@@ -104,175 +104,180 @@ export default function Home() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Shield className="w-10 h-10 text-primary" />
-          <h1 className="text-3xl font-bold">Security Center</h1>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 max-w-6xl">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Shield className="w-10 h-10 text-primary" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-400 text-transparent bg-clip-text">
+              Security Center
+            </h1>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => updateSignaturesMutation.mutate()}
+            disabled={updateSignaturesMutation.isPending}
+            className="border-primary/20 hover:bg-primary/10"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Update Signatures
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => updateSignaturesMutation.mutate()}
-          disabled={updateSignaturesMutation.isPending}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Update Signatures
-        </Button>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className={getStatusColor()} />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>Realtime Protection</span>
-                <Switch
-                  checked={status?.realtimeProtection}
-                  onCheckedChange={(checked) => toggleProtectionMutation.mutate(checked)}
-                />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className={getStatusColor()} />
+                System Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span>Realtime Protection</span>
+                  <Switch
+                    checked={status?.realtimeProtection}
+                    onCheckedChange={(checked) => toggleProtectionMutation.mutate(checked)}
+                  />
+                </div>
+                <div>
+                  <span className="text-sm text-muted-foreground">System Health</span>
+                  <Progress value={status?.systemHealth} className="mt-2" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Signature Version: {status?.signatureVersion}
+                </p>
               </div>
-              <div>
-                <span className="text-sm text-muted-foreground">System Health</span>
-                <Progress value={status?.systemHealth} className="mt-2" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock />
+                Last Scans
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p>
+                  <span className="text-sm text-muted-foreground">Quick Scan: </span>
+                  {status?.lastQuickScan
+                    ? new Date(status.lastQuickScan).toLocaleDateString()
+                    : "Never"}
+                </p>
+                <p>
+                  <span className="text-sm text-muted-foreground">Full Scan: </span>
+                  {status?.lastFullScan
+                    ? new Date(status.lastFullScan).toLocaleDateString()
+                    : "Never"}
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Signature Version: {status?.signatureVersion}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock />
-              Last Scans
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p>
-                <span className="text-sm text-muted-foreground">Quick Scan: </span>
-                {status?.lastQuickScan
-                  ? new Date(status.lastQuickScan).toLocaleDateString()
-                  : "Never"}
-              </p>
-              <p>
-                <span className="text-sm text-muted-foreground">Full Scan: </span>
-                {status?.lastFullScan
-                  ? new Date(status.lastFullScan).toLocaleDateString()
-                  : "Never"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert />
+                Threats Found
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold">{status?.threatsDetected || 0}</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldAlert />
-              Threats Found
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{status?.threatsDetected || 0}</p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSearch />
+                Quick Scan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleQuickScan}
+                multiple
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={scanning}
+                className="w-full mb-4"
+              >
+                <FileLock2 className="mr-2 h-4 w-4" />
+                Select Files to Scan
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive />
+                Full System Scan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleFullScan}
+                disabled={scanning}
+                className="w-full mb-4"
+              >
+                Start Full Scan
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {scanning && (
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <h3 className="font-semibold">
+                  {scanType === "quick" ? "Quick Scan" : "Full System Scan"} in Progress
+                </h3>
+                <Progress value={progress} />
+                <p className="text-sm text-muted-foreground text-center">
+                  Scanning system... {Math.round(progress)}%
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {history?.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Threat History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {history.map((result: any) => (
+                  <Alert
+                    key={result.id}
+                    variant={result.status === "infected" ? "destructive" : "default"}
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {result.filePath} - {result.status}
+                      {result.threatType && ` (${result.threatType})`}
+                      {result.metadata?.threatLevel &&
+                        ` - Threat Level: ${result.metadata.threatLevel}`}
+                    </AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSearch />
-              Quick Scan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleQuickScan}
-              multiple
-              className="hidden"
-            />
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={scanning}
-              className="w-full mb-4"
-            >
-              <FileLock2 className="mr-2 h-4 w-4" />
-              Select Files to Scan
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive />
-              Full System Scan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleFullScan}
-              disabled={scanning}
-              className="w-full mb-4"
-            >
-              Start Full Scan
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {scanning && (
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <h3 className="font-semibold">
-                {scanType === "quick" ? "Quick Scan" : "Full System Scan"} in Progress
-              </h3>
-              <Progress value={progress} />
-              <p className="text-sm text-muted-foreground text-center">
-                Scanning system... {Math.round(progress)}%
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {history?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Threat History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {history.map((result: any) => (
-                <Alert
-                  key={result.id}
-                  variant={result.status === "infected" ? "destructive" : "default"}
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {result.filePath} - {result.status}
-                    {result.threatType && ` (${result.threatType})`}
-                    {result.metadata?.threatLevel && 
-                      ` - Threat Level: ${result.metadata.threatLevel}`}
-                  </AlertDescription>
-                </Alert>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -25,11 +25,40 @@ export async function registerRoutes(app: Express) {
 
   // Update system settings
   app.post("/api/settings", async (req, res) => {
-    const { realtimeProtection } = req.body;
+    const { realtimeProtection, webProtection, downloadScanning } = req.body;
     const status = await storage.updateSystemStatus({
-      realtimeProtection
+      realtimeProtection,
+      webProtection,
+      downloadScanning
     });
     res.json(status);
+  });
+
+  // Web protection endpoints
+  app.post("/api/check-url", async (req, res) => {
+    const { url } = req.body;
+    try {
+      const result = await storage.scanUrl(url);
+
+      await storage.addNetworkEvent({
+        processName: "web_browser",
+        remoteAddress: new URL(url).hostname,
+        remotePort: 80,
+        protocol: new URL(url).protocol.slice(0, -1),
+        action: result.isMalicious ? "blocked" : "allowed",
+        reason: result.category || "safe",
+      });
+
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid URL or scanning failed" });
+    }
+  });
+
+  // Network monitoring
+  app.get("/api/network-events", async (req, res) => {
+    const events = await storage.getNetworkEvents();
+    res.json(events);
   });
 
   // Perform quick scan on specific files/folders

@@ -5,6 +5,8 @@ import {
   type InsertScanResult, 
   type SystemStatus,
   type MalwareSignature,
+  type NetworkEvent,
+  type MaliciousUrl,
   MALWARE_PATTERNS,
   THREAT_LEVELS
 } from "@shared/schema";
@@ -22,21 +24,35 @@ export interface IStorage {
   // Malware signatures
   getMalwareSignatures(): Promise<MalwareSignature[]>;
   updateSignatures(): Promise<void>;
+
+  // Network protection
+  addNetworkEvent(event: NetworkEvent): Promise<void>;
+  getNetworkEvents(): Promise<NetworkEvent[]>;
+  isUrlMalicious(url: string): Promise<boolean>;
+  scanUrl(url: string): Promise<{isMalicious: boolean; category?: string}>;
 }
 
 export class MemStorage implements IStorage {
   private scanResults: Map<number, ScanResult>;
   private systemStatus: SystemStatus;
   private malwareSignatures: Map<string, MalwareSignature>;
+  private networkEvents: Map<number, NetworkEvent>;
+  private maliciousUrls: Map<number, MaliciousUrl>;
   private currentId: number;
+  private networkEventId: number;
 
   constructor() {
     this.scanResults = new Map();
     this.malwareSignatures = new Map();
+    this.networkEvents = new Map();
+    this.maliciousUrls = new Map();
     this.currentId = 1;
+    this.networkEventId = 1;
     this.systemStatus = {
       id: 1,
       realtimeProtection: true,
+      webProtection: true,
+      downloadScanning: true,
       lastFullScan: null,
       lastQuickScan: null,
       threatsDetected: 0,
@@ -161,12 +177,43 @@ export class MemStorage implements IStorage {
   }
 
   async updateSignatures(): Promise<void> {
-    // In a real implementation, this would download and update signatures
-    // For now, we'll just update the version and timestamp
     await this.updateSystemStatus({
       lastUpdateCheck: new Date(),
       signatureVersion: "1.0.1"
     });
+  }
+
+  async addNetworkEvent(event: NetworkEvent): Promise<void> {
+    const id = this.networkEventId++;
+    this.networkEvents.set(id, { ...event, id, timestamp: new Date() });
+  }
+
+  async getNetworkEvents(): Promise<NetworkEvent[]> {
+    return Array.from(this.networkEvents.values());
+  }
+
+  async isUrlMalicious(url: string): Promise<boolean> {
+    // Check against known malicious domains
+    const domain = new URL(url).hostname;
+    return MALWARE_PATTERNS.MALICIOUS_DOMAINS.some(maliciousDomain => 
+      domain.includes(maliciousDomain)
+    );
+  }
+
+  async scanUrl(url: string): Promise<{isMalicious: boolean; category?: string}> {
+    // Check for suspicious protocols
+    for (const protocol of MALWARE_PATTERNS.SUSPICIOUS_PROTOCOLS) {
+      if (url.toLowerCase().startsWith(protocol)) {
+        return { isMalicious: true, category: 'suspicious_protocol' };
+      }
+    }
+
+    // Check known malicious domains
+    if (await this.isUrlMalicious(url)) {
+      return { isMalicious: true, category: 'malicious_domain' };
+    }
+
+    return { isMalicious: false };
   }
 }
 

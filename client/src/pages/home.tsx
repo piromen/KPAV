@@ -8,8 +8,10 @@ import {
   AlertCircle,
   RefreshCw,
   HardDrive,
-  Settings,
-  FileLock2
+  Globe,
+  Download,
+  FileLock2,
+  Network
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -34,21 +36,26 @@ export default function Home() {
     queryKey: ["/api/scan-history"],
   });
 
+  const { data: networkEvents } = useQuery({
+    queryKey: ["/api/network-events"],
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
   const updateSignaturesMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/update-signatures");
     },
     onSuccess: () => {
       toast({
-        title: "Signatures Updated",
-        description: "Virus definitions have been updated successfully.",
+        title: "İmzalar Güncellendi",
+        description: "Virüs tanımları başarıyla güncellendi.",
       });
     },
   });
 
   const toggleProtectionMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      return apiRequest("POST", "/api/settings", { realtimeProtection: enabled });
+    mutationFn: async ({ type, enabled }: { type: string; enabled: boolean }) => {
+      return apiRequest("POST", "/api/settings", { [type]: enabled });
     },
   });
 
@@ -59,8 +66,8 @@ export default function Home() {
     },
     onSuccess: () => {
       toast({
-        title: "Scan Complete",
-        description: "System scan has been completed successfully.",
+        title: "Tarama Tamamlandı",
+        description: "Sistem taraması başarıyla tamamlandı.",
       });
       setScanning(false);
       setProgress(0);
@@ -98,7 +105,7 @@ export default function Home() {
   };
 
   const getStatusColor = () => {
-    if (!status?.realtimeProtection) return "text-red-500";
+    if (!status?.realtimeProtection || !status?.webProtection) return "text-red-500";
     if (status?.systemHealth < 50) return "text-yellow-500";
     return "text-green-500";
   };
@@ -120,33 +127,50 @@ export default function Home() {
             className="border-primary/20 hover:bg-primary/10"
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            Update Signatures
+            İmzaları Güncelle
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className={getStatusColor()} />
-                System Status
+                Sistem Durumu
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span>Realtime Protection</span>
+                  <span>Gerçek Zamanlı Koruma</span>
                   <Switch
                     checked={status?.realtimeProtection}
-                    onCheckedChange={(checked) => toggleProtectionMutation.mutate(checked)}
+                    onCheckedChange={(checked) => 
+                      toggleProtectionMutation.mutate({ type: "realtimeProtection", enabled: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Web Koruması</span>
+                  <Switch
+                    checked={status?.webProtection}
+                    onCheckedChange={(checked) => 
+                      toggleProtectionMutation.mutate({ type: "webProtection", enabled: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>İndirme Taraması</span>
+                  <Switch
+                    checked={status?.downloadScanning}
+                    onCheckedChange={(checked) => 
+                      toggleProtectionMutation.mutate({ type: "downloadScanning", enabled: checked })}
                   />
                 </div>
                 <div>
-                  <span className="text-sm text-muted-foreground">System Health</span>
+                  <span className="text-sm text-muted-foreground">Sistem Sağlığı</span>
                   <Progress value={status?.systemHealth} className="mt-2" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Signature Version: {status?.signatureVersion}
+                  İmza Versiyonu: {status?.signatureVersion}
                 </p>
               </div>
             </CardContent>
@@ -156,22 +180,22 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock />
-                Last Scans
+                Son Taramalar
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <p>
-                  <span className="text-sm text-muted-foreground">Quick Scan: </span>
+                  <span className="text-sm text-muted-foreground">Hızlı Tarama: </span>
                   {status?.lastQuickScan
                     ? new Date(status.lastQuickScan).toLocaleDateString()
-                    : "Never"}
+                    : "Hiç yapılmadı"}
                 </p>
                 <p>
-                  <span className="text-sm text-muted-foreground">Full Scan: </span>
+                  <span className="text-sm text-muted-foreground">Tam Tarama: </span>
                   {status?.lastFullScan
                     ? new Date(status.lastFullScan).toLocaleDateString()
-                    : "Never"}
+                    : "Hiç yapılmadı"}
                 </p>
               </div>
             </CardContent>
@@ -181,11 +205,31 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldAlert />
-                Threats Found
+                Tespit Edilen Tehditler
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold">{status?.threatsDetected || 0}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe />
+                Web Koruması
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p>
+                  <span className="text-sm text-muted-foreground">Engellenen URL'ler: </span>
+                  {networkEvents?.filter(e => e.action === "blocked").length || 0}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {status?.webProtection ? "Aktif" : "Devre Dışı"}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -195,7 +239,7 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSearch />
-                Quick Scan
+                Hızlı Tarama
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -212,7 +256,7 @@ export default function Home() {
                 className="w-full mb-4"
               >
                 <FileLock2 className="mr-2 h-4 w-4" />
-                Select Files to Scan
+                Dosya Seç ve Tara
               </Button>
             </CardContent>
           </Card>
@@ -221,7 +265,7 @@ export default function Home() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <HardDrive />
-                Full System Scan
+                Tam Sistem Taraması
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -230,7 +274,7 @@ export default function Home() {
                 disabled={scanning}
                 className="w-full mb-4"
               >
-                Start Full Scan
+                Tam Tarama Başlat
               </Button>
             </CardContent>
           </Card>
@@ -241,12 +285,40 @@ export default function Home() {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <h3 className="font-semibold">
-                  {scanType === "quick" ? "Quick Scan" : "Full System Scan"} in Progress
+                  {scanType === "quick" ? "Hızlı Tarama" : "Tam Sistem Taraması"} Devam Ediyor
                 </h3>
                 <Progress value={progress} />
                 <p className="text-sm text-muted-foreground text-center">
-                  Scanning system... {Math.round(progress)}%
+                  Sistem taranıyor... %{Math.round(progress)}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {networkEvents?.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Network />
+                Ağ Aktivitesi
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {networkEvents.slice(0, 5).map((event: any) => (
+                  <Alert
+                    key={event.id}
+                    variant={event.action === "blocked" ? "destructive" : "default"}
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {event.processName} - {event.remoteAddress}:{event.remotePort} 
+                      ({event.protocol}) - {event.action}
+                      {event.reason && ` (${event.reason})`}
+                    </AlertDescription>
+                  </Alert>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -255,7 +327,7 @@ export default function Home() {
         {history?.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Threat History</CardTitle>
+              <CardTitle>Tehdit Geçmişi</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -269,7 +341,7 @@ export default function Home() {
                       {result.filePath} - {result.status}
                       {result.threatType && ` (${result.threatType})`}
                       {result.metadata?.threatLevel &&
-                        ` - Threat Level: ${result.metadata.threatLevel}`}
+                        ` - Tehdit Seviyesi: ${result.metadata.threatLevel}`}
                     </AlertDescription>
                   </Alert>
                 ))}

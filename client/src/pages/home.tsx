@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Logo } from "@/components/ui/logo";
 
 export default function Home() {
   const { toast } = useToast();
@@ -125,7 +126,7 @@ export default function Home() {
       <div className="container mx-auto p-6 max-w-6xl">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Shield className="w-10 h-10 text-primary" />
+            <Logo className="w-12 h-12" />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-400 text-transparent bg-clip-text">
               KAZIMPAŞA ANTİ-VİRÜS
             </h1>

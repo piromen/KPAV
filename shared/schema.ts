@@ -1,4 +1,12 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -61,7 +69,9 @@ export const insertScanResultSchema = createInsertSchema(scanResults).omit({
   scanTimestamp: true,
 });
 
-export const insertMalwareSignatureSchema = createInsertSchema(malwareSignatures).omit({
+export const insertMalwareSignatureSchema = createInsertSchema(
+  malwareSignatures,
+).omit({
   id: true,
   createdAt: true,
 });
@@ -72,8 +82,8 @@ export const insertNetworkEventSchema = createInsertSchema(networkEvents).omit({
 });
 
 export const insertMaliciousUrlSchema = createInsertSchema(maliciousUrls).omit({
-    id: true,
-    lastUpdated: true,
+  id: true,
+  lastUpdated: true,
 });
 
 // Types
@@ -84,7 +94,6 @@ export type MalwareSignature = typeof malwareSignatures.$inferSelect;
 export type NetworkEvent = typeof networkEvents.$inferSelect;
 export type MaliciousUrl = typeof maliciousUrls.$inferSelect;
 
-
 // Malware detection patterns and signatures
 export const MALWARE_PATTERNS = {
   VIRUS: /^X5O!P%@AP\[4\\PZX54\(P\^\)7CC\)7\}\$EICAR/,
@@ -94,21 +103,13 @@ export const MALWARE_PATTERNS = {
     /powershell\.exe/,
     /System\.Reflection/,
   ],
-  DANGEROUS_IMPORTS: [
-    "kernel32.dll",
-    "user32.dll",
-    "advapi32.dll",
-  ],
+  DANGEROUS_IMPORTS: ["kernel32.dll", "user32.dll", "advapi32.dll"],
   MALICIOUS_DOMAINS: [
     "malware.example.com",
     "phishing.example.net",
-    "suspicious.example.org"
+    "suspicious.example.org",
   ],
-  SUSPICIOUS_PROTOCOLS: [
-    "irc:",
-    "telnet:",
-    "ftp:"
-  ]
+  SUSPICIOUS_PROTOCOLS: ["irc:", "telnet:", "ftp:"],
 };
 
 export const THREAT_LEVELS = {

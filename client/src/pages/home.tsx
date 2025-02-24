@@ -24,7 +24,7 @@ import { apiRequest } from "@/lib/queryClient";
 export default function Home() {
   const { toast } = useToast();
   const [scanning, setScanning] = useState(false);
-  const [scanType, setScanType] = useState<"quick" | "full" | null>(null);
+  const [scanType, setScanType] = useState<"quick" | "full" | "custom" | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,8 +60,21 @@ export default function Home() {
   });
 
   const scanMutation = useMutation({
-    mutationFn: async ({ type, paths }: { type: "quick" | "full"; paths?: string[] }) => {
-      const endpoint = type === "quick" ? "/api/quick-scan" : "/api/full-scan";
+    mutationFn: async ({ type, paths }: { type: "quick" | "full" | "custom"; paths?: string[] }) => {
+      let endpoint;
+      switch (type) {
+        case "quick":
+          endpoint = "/api/quick-scan";
+          break;
+        case "full":
+          endpoint = "/api/full-scan";
+          break;
+        case "custom":
+          endpoint = "/api/custom-scan";
+          break;
+        default:
+          throw new Error("Invalid scan type");
+      }
       return apiRequest("POST", endpoint, { paths });
     },
     onSuccess: () => {
@@ -75,14 +88,11 @@ export default function Home() {
     },
   });
 
-  const handleQuickScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).map(f => f.path);
-    if (files.length === 0) return;
-
+  const handleQuickScan = async () => {
     setScanning(true);
     setScanType("quick");
     simulateProgress();
-    await scanMutation.mutateAsync({ type: "quick", paths: files });
+    await scanMutation.mutateAsync({ type: "quick" });
   };
 
   const handleFullScan = async () => {
@@ -145,7 +155,7 @@ export default function Home() {
                   <span>Gerçek Zamanlı Koruma</span>
                   <Switch
                     checked={status?.realtimeProtection}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       toggleProtectionMutation.mutate({ type: "realtimeProtection", enabled: checked })}
                   />
                 </div>
@@ -153,7 +163,7 @@ export default function Home() {
                   <span>Web Koruması</span>
                   <Switch
                     checked={status?.webProtection}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       toggleProtectionMutation.mutate({ type: "webProtection", enabled: checked })}
                   />
                 </div>
@@ -161,7 +171,7 @@ export default function Home() {
                   <span>İndirme Taraması</span>
                   <Switch
                     checked={status?.downloadScanning}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       toggleProtectionMutation.mutate({ type: "downloadScanning", enabled: checked })}
                   />
                 </div>
@@ -234,7 +244,7 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <div className="grid gap-6 md:grid-cols-3 mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -243,10 +253,40 @@ export default function Home() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <Button
+                onClick={handleQuickScan}
+                disabled={scanning}
+                className="w-full mb-4"
+              >
+                <FileSearch className="mr-2 h-4 w-4" />
+                Hızlı Tarama Başlat
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Önemli sistem klasörlerini hızlıca tarar
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileLock2 />
+                Özel Tarama
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={handleQuickScan}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []).map(f => f.path);
+                  if (files.length === 0) return;
+
+                  setScanning(true);
+                  setScanType("custom");
+                  simulateProgress();
+                  scanMutation.mutateAsync({ type: "custom", paths: files });
+                }}
                 multiple
                 className="hidden"
               />
@@ -258,6 +298,9 @@ export default function Home() {
                 <FileLock2 className="mr-2 h-4 w-4" />
                 Dosya Seç ve Tara
               </Button>
+              <p className="text-sm text-muted-foreground">
+                Seçtiğiniz dosya ve klasörleri tarar
+              </p>
             </CardContent>
           </Card>
 
@@ -274,8 +317,12 @@ export default function Home() {
                 disabled={scanning}
                 className="w-full mb-4"
               >
+                <HardDrive className="mr-2 h-4 w-4" />
                 Tam Tarama Başlat
               </Button>
+              <p className="text-sm text-muted-foreground">
+                Tüm sistemi detaylı olarak tarar
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -285,7 +332,7 @@ export default function Home() {
             <CardContent className="pt-6">
               <div className="space-y-2">
                 <h3 className="font-semibold">
-                  {scanType === "quick" ? "Hızlı Tarama" : "Tam Sistem Taraması"} Devam Ediyor
+                  {scanType === "quick" ? "Hızlı Tarama" : scanType === "custom" ? "Özel Tarama" : "Tam Sistem Taraması"} Devam Ediyor
                 </h3>
                 <Progress value={progress} />
                 <p className="text-sm text-muted-foreground text-center">
@@ -313,7 +360,7 @@ export default function Home() {
                   >
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      {event.processName} - {event.remoteAddress}:{event.remotePort} 
+                      {event.processName} - {event.remoteAddress}:{event.remotePort}
                       ({event.protocol}) - {event.action}
                       {event.reason && ` (${event.reason})`}
                     </AlertDescription>

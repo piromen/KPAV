@@ -16,6 +16,15 @@ async function* walkDirectory(dir: string): AsyncGenerator<string> {
   }
 }
 
+// Önceden belirlenmiş önemli sistem klasörleri
+const QUICK_SCAN_PATHS = [
+  "/usr/bin",
+  "/usr/local/bin",
+  "/home",
+  "/tmp",
+  "/var/tmp"
+];
+
 export async function registerRoutes(app: Express) {
   // Get system status
   app.get("/api/status", async (req, res) => {
@@ -61,8 +70,35 @@ export async function registerRoutes(app: Express) {
     res.json(events);
   });
 
-  // Perform quick scan on specific files/folders
+  // Hızlı Sistem Taraması - Önceden belirlenmiş klasörleri tarar
   app.post("/api/quick-scan", async (req, res) => {
+    const results = [];
+    const errors = [];
+
+    for (const basePath of QUICK_SCAN_PATHS) {
+      try {
+        for await (const filePath of walkDirectory(basePath)) {
+          try {
+            const result = await storage.scanFile(filePath);
+            results.push(result);
+          } catch (error) {
+            errors.push({ path: filePath, error: error.message });
+          }
+        }
+      } catch (error) {
+        errors.push({ path: basePath, error: "Directory access denied" });
+      }
+    }
+
+    await storage.updateSystemStatus({
+      lastQuickScan: new Date()
+    });
+
+    res.json({ results, errors });
+  });
+
+  // Özel Tarama - Seçilen dosyaları tarar
+  app.post("/api/custom-scan", async (req, res) => {
     const { paths } = req.body;
     const results = [];
     const errors = [];
@@ -76,14 +112,10 @@ export async function registerRoutes(app: Express) {
       }
     }
 
-    await storage.updateSystemStatus({
-      lastQuickScan: new Date()
-    });
-
     res.json({ results, errors });
   });
 
-  // Perform full system scan
+  // Tam Sistem Taraması
   app.post("/api/full-scan", async (req, res) => {
     const results = [];
     const errors = [];

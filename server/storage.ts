@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { readFile, stat } from "fs/promises";
-import { 
-  type ScanResult, 
-  type InsertScanResult, 
+import {
+  type ScanResult,
+  type InsertScanResult,
   type SystemStatus,
   type MalwareSignature,
   type NetworkEvent,
@@ -67,12 +67,48 @@ export class MemStorage implements IStorage {
     return createHash('sha256').update(content).digest('hex');
   }
 
+  private async checkFileAgainstSignatures(fileContent: Buffer, filePath: string): Promise<{
+    matches: string[];
+    threatLevel: number;
+  }> {
+    const matches: string[] = [];
+    let maxThreatLevel = 0;
+
+    // Check against known malware signatures
+    const signatures = await this.getMalwareSignatures();
+    for (const signature of signatures) {
+      const pattern = new RegExp(signature.detectionPattern, 'i');
+      if (pattern.test(fileContent.toString())) {
+        matches.push(signature.malwareType);
+        maxThreatLevel = Math.max(maxThreatLevel, signature.threatLevel);
+      }
+    }
+
+    // File extension checks
+    const ext = filePath.toLowerCase().split('.').pop();
+    const suspiciousExts = ['exe', 'dll', 'bat', 'cmd', 'ps1', 'vbs'];
+    if (suspiciousExts.includes(ext)) {
+      // Additional checks for executable files
+      for (const importName of MALWARE_PATTERNS.DANGEROUS_IMPORTS) {
+        if (fileContent.includes(Buffer.from(importName))) {
+          matches.push(`suspicious_import_${importName}`);
+          maxThreatLevel = Math.max(maxThreatLevel, THREAT_LEVELS.HIGH);
+        }
+      }
+    }
+
+    return {
+      matches,
+      threatLevel: maxThreatLevel
+    };
+  }
+
   private async scanForThreats(filePath: string, content: Buffer): Promise<{
     status: string;
     threatType?: string;
     threatLevel?: number;
   }> {
-    // Check file against EICAR test virus pattern
+    // EICAR test virus pattern check
     if (MALWARE_PATTERNS.VIRUS.test(content.toString())) {
       return {
         status: "infected",
@@ -81,7 +117,17 @@ export class MemStorage implements IStorage {
       };
     }
 
-    // Check for suspicious patterns
+    // Signature-based detection
+    const signatureCheck = await this.checkFileAgainstSignatures(content, filePath);
+    if (signatureCheck.matches.length > 0) {
+      return {
+        status: "infected",
+        threatType: signatureCheck.matches.join(', '),
+        threatLevel: signatureCheck.threatLevel
+      };
+    }
+
+    // Heuristic pattern checks
     for (const pattern of MALWARE_PATTERNS.SUSPICIOUS_PATTERNS) {
       if (pattern.test(content.toString())) {
         return {
@@ -89,19 +135,6 @@ export class MemStorage implements IStorage {
           threatType: "potential_malware",
           threatLevel: THREAT_LEVELS.MEDIUM
         };
-      }
-    }
-
-    // Check for dangerous imports in executables
-    if (filePath.endsWith('.exe') || filePath.endsWith('.dll')) {
-      for (const importName of MALWARE_PATTERNS.DANGEROUS_IMPORTS) {
-        if (content.includes(Buffer.from(importName))) {
-          return {
-            status: "suspicious",
-            threatType: "suspicious_binary",
-            threatLevel: THREAT_LEVELS.HIGH
-          };
-        }
       }
     }
 
@@ -177,6 +210,44 @@ export class MemStorage implements IStorage {
   }
 
   async updateSignatures(): Promise<void> {
+    // Örnek imzalar ekliyoruz (gerçek bir sistemde bu imzalar bir veritabanından veya güncel bir API'den gelir)
+    const sampleSignatures: MalwareSignature[] = [
+      {
+        id: 1,
+        signatureHash: "sample_hash_1",
+        malwareType: "trojan",
+        threatLevel: THREAT_LEVELS.HIGH,
+        description: "Generic Trojan Signature",
+        detectionPattern: "(?i)(trojan|backdoor|rootkit)",
+        createdAt: new Date()
+      },
+      {
+        id: 2,
+        signatureHash: "sample_hash_2",
+        malwareType: "ransomware",
+        threatLevel: THREAT_LEVELS.CRITICAL,
+        description: "Ransomware Signature",
+        detectionPattern: "(?i)(encrypt.*files|decrypt.*payment|bitcoin|wallet)",
+        createdAt: new Date()
+      },
+      {
+        id: 3,
+        signatureHash: "sample_hash_3",
+        malwareType: "keylogger",
+        threatLevel: THREAT_LEVELS.HIGH,
+        description: "Keylogger Signature",
+        detectionPattern: "(?i)(keylog|getasynckeystate|keyboard.*hook)",
+        createdAt: new Date()
+      }
+    ];
+
+    // İmzaları hafızada saklıyoruz
+    this.malwareSignatures.clear();
+    for (const sig of sampleSignatures) {
+      this.malwareSignatures.set(sig.signatureHash, sig);
+    }
+
+    // Sistem durumunu güncelliyoruz
     await this.updateSystemStatus({
       lastUpdateCheck: new Date(),
       signatureVersion: "1.0.1"
@@ -195,7 +266,7 @@ export class MemStorage implements IStorage {
   async isUrlMalicious(url: string): Promise<boolean> {
     // Check against known malicious domains
     const domain = new URL(url).hostname;
-    return MALWARE_PATTERNS.MALICIOUS_DOMAINS.some(maliciousDomain => 
+    return MALWARE_PATTERNS.MALICIOUS_DOMAINS.some(maliciousDomain =>
       domain.includes(maliciousDomain)
     );
   }

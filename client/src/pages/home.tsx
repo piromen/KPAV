@@ -180,9 +180,16 @@ export default function Home() {
                   <span className="text-sm text-muted-foreground">Sistem Sağlığı</span>
                   <Progress value={status?.systemHealth} className="mt-2" />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  İmza Versiyonu: {status?.signatureVersion}
-                </p>
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    İmza Versiyonu: {status?.signatureVersion}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Son Güncelleme: {status?.lastUpdateCheck 
+                      ? new Date(status.lastUpdateCheck).toLocaleDateString()
+                      : "Hiç güncellenmedi"}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
